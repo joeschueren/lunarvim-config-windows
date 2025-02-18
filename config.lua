@@ -38,8 +38,9 @@ vim.opt.number = true
 
 -- Custom keybidings
 vim.keymap.set('n', '<C-c>', '<Cmd>CopilotChat<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<Leader>`', '<Cmd>wincmd W<CR>', { noremap = true, silent = true })
+vim.keymap.set('n', '<Tab>', '<Cmd>wincmd W<CR>', { noremap = true, silent = true })
 vim.keymap.set('n', '<C-f>', '<Cmd>Telescope live_grep<CR>', { noremap = true, silent = true })
+vim.keymap.set('n', '<C-d>', '<Cmd>DBUI<CR>', { noremap = true, silent = true })
 
 -- quickfix list delete keymap
 function Remove_qf_item()
@@ -69,6 +70,12 @@ vim.api.nvim_command("autocmd FileType qf nnoremap <buffer> dd :RemoveQFItem<cr>
 lvim.plugins = {
     { "EdenEast/nightfox.nvim" },
     { "github/copilot.vim" },
+    { "tpope/vim-dadbod",
+        dependencies = {
+            { "kristijanhusak/vim-dadbod-ui" },
+            { "kristijanhusak/vim-dadbod-completion" },
+        },
+    },
     {
         "CopilotC-Nvim/CopilotChat.nvim",
         dependencies = {
