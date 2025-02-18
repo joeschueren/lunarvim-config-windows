@@ -38,15 +38,34 @@ vim.opt.number = true
 
 -- Custom keybidings
 vim.keymap.set('n', '<C-c>', '<Cmd>CopilotChat<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<Leader><tab>', '<C-w>w', { noremap = true, silent = true })
+vim.keymap.set('n', '<Leader>`', '<Cmd>wincmd W<CR>', { noremap = true, silent = true })
 vim.keymap.set('n', '<C-f>', '<Cmd>Telescope live_grep<CR>', { noremap = true, silent = true })
 
-vim.api.nvim_create_user_command("WebRun", function()
-    local project_path = "C:\\Users\\Joe Schueren\\Documents\\GitHub\\Snively-Inventory-Solution\\Snively Inventory Solution"
+-- quickfix list delete keymap
+function Remove_qf_item()
+  local curqfidx = vim.fn.line('.')
+  local qfall = vim.fn.getqflist()
 
-    vim.cmd("term cd " .. project_path .. " && dotnet watch run")
-    end, {})
+  -- Return if there are no items to remove
+  if #qfall == 0 then return end
 
+  -- Remove the item from the quickfix list
+  table.remove(qfall, curqfidx)
+  vim.fn.setqflist(qfall, 'r')
+
+  -- Reopen quickfix window to refresh the list
+  vim.cmd('copen')
+
+  -- If not at the end of the list, stay at the same index, otherwise, go one up.
+  local new_idx = curqfidx < #qfall and curqfidx or math.max(curqfidx - 1, 1)
+
+  -- Set the cursor position directly in the quickfix window
+  local winid = vim.fn.win_getid() -- Get the window ID of the quickfix window
+  vim.api.nvim_win_set_cursor(winid, {new_idx, 0})
+end
+
+vim.cmd("command! RemoveQFItem lua Remove_qf_item()")
+vim.api.nvim_command("autocmd FileType qf nnoremap <buffer> dd :RemoveQFItem<cr>")
 lvim.plugins = {
     { "EdenEast/nightfox.nvim" },
     { "github/copilot.vim" },
