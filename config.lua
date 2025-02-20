@@ -1,4 +1,4 @@
--- Read the docs: https://www.lunarvim.org/docs/configuration
+-- Read the docs: https://www.lunarvim.org/docs/configuratin
 -- Example configs: https://github.com/LunarVim/starter.lvim
 -- Video Tutorials: https://www.youtube.com/watch?v=sFA9kX-Ud_c&list=PLhoH5vyxr6QqGu0i7tt_XoVK9v-KvZ3m6
 -- Forum: https://www.reddit.com/r/lunarvim/
@@ -41,6 +41,71 @@ vim.keymap.set('n', '<C-c>', '<Cmd>CopilotChat<CR>', { noremap = true, silent = 
 vim.keymap.set('n', '<Tab>', '<Cmd>wincmd W<CR>', { noremap = true, silent = true })
 vim.keymap.set('n', '<C-f>', '<Cmd>Telescope live_grep<CR>', { noremap = true, silent = true })
 vim.keymap.set('n', '<C-d>', '<Cmd>DBUI<CR>', { noremap = true, silent = true })
+vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
+vim.keymap.set('n', '<C-l>', '<Cmd>Telescope oldfiles<CR>', { noremap = true, silent = true })
+vim.keymap.set('n', '<C-p>', '<Cmd>PasteAsSQL<CR>', { noremap = true, silent = true })
+
+
+-- Put query into SQL acceptable format
+function Paste_as_sql()
+    -- Get the yanked text from the unnamed register
+    local yanked_text = vim.fn.getreg('"')
+
+    -- Find all variables indicated by @ signs
+    local variables = {}
+    for var in yanked_text:gmatch("@%w+") do
+        table.insert(variables, var)
+    end
+
+    -- Remove duplicates from variables
+    local unique_variables = {}
+    for _, var in ipairs(variables) do
+        unique_variables[var] = true
+    end
+
+    -- List of SQL types
+    local sql_types = {"1. VARCHAR(MAX)", "2. INT", "3. FLOAT", "4. DATE", "5. BIT"}
+
+    -- Default values and types for variables
+    local defaults = {
+        ["@timeSpanOffset"] = {value = "0", type = "INT"},
+        ["@account"] = { type = "INT" },
+        ["@date"] = { type = "DATE" }
+    }
+
+    -- Prompt for variable values and types
+    local variable_declarations = ""
+    for var, _ in pairs(unique_variables) do
+        local value = defaults[var] and defaults[var].value or vim.fn.input("Enter value for " .. var .. ": ")
+        local var_type
+        if defaults[var] and defaults[var].type then
+            var_type = defaults[var].type
+        else
+            local type_index = vim.fn.inputlist({"Choose type for " .. var .. ":", unpack(sql_types)})
+            var_type = sql_types[type_index]:match("%d+%. (.+)")
+        end
+        variable_declarations = variable_declarations .. "DECLARE " .. var .. " " .. var_type .. " = '" .. value .. "';\n"
+    end
+
+    -- Remove unwanted characters and preserve necessary dots
+    local processed_text = yanked_text
+        :gsub('^[^"]*', "")         -- Remove everything before the first quote
+        :gsub('"[^"]*$', "")         -- Remove everything after the first quote
+        :gsub('"%s*%+%s*"', "")     -- Remove concatenation operators
+        :gsub('"%s*', "")           -- Remove leading quotes
+        :gsub('%s*"', "")           -- Remove trailing quotes
+
+    -- Combine variable declarations with processed text
+    local final_text = variable_declarations .. processed_text
+
+    -- Update the unnamed register with the final text
+    vim.fn.setreg('"', final_text)
+
+    -- Paste the final text into the current buffer
+    vim.api.nvim_paste(final_text, true, -1)
+end
+
+vim.cmd("command! PasteAsSQL lua Paste_as_sql()")
 
 -- quickfix list delete keymap
 function Remove_qf_item()
@@ -70,6 +135,15 @@ vim.api.nvim_command("autocmd FileType qf nnoremap <buffer> dd :RemoveQFItem<cr>
 lvim.plugins = {
     { "EdenEast/nightfox.nvim" },
     { "github/copilot.vim" },
+    { "tpope/vim-surround" },
+    {
+      'stevearc/oil.nvim',
+      ---@module 'oil'
+      ---@type oil.SetupOpts
+      opts = {},
+      dependencies = { "nvim-tree/nvim-web-devicons" }, -- use if you prefer nvim-web-devicons
+      lazy = false,
+    },
     { "tpope/vim-dadbod",
         dependencies = {
             { "kristijanhusak/vim-dadbod-ui" },
