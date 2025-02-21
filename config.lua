@@ -172,6 +172,10 @@ vim.api.nvim_command("autocmd FileType qf nnoremap <buffer> dd :RemoveQFItem<cr>
 
 lvim.plugins = {
     { "EdenEast/nightfox.nvim" },
+    { "Mofiqul/vscode.nvim" },
+    { "pauchiner/pastelnight.nvim" },
+    { "Enonya/yuyuko.vim" },
+    { "neg-serg/neg.nvim" },
     { "github/copilot.vim" },
     { "tpope/vim-surround" },
     {
