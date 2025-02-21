@@ -45,6 +45,43 @@ vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
 vim.keymap.set('n', '<C-l>', '<Cmd>Telescope oldfiles<CR>', { noremap = true, silent = true })
 vim.keymap.set('n', '<C-p>', '<Cmd>PasteAsSQL<CR>', { noremap = true, silent = true })
 
+local lspconfig = require("lspconfig")
+lspconfig.omnisharp.setup({
+    cmd = { "omnisharp" }, -- Ensure it's in your PATH or provide full path
+    enable_roslyn_analyzers = true,
+    enable_import_completion = true,
+    organize_imports_on_format = true,
+    root_dir = lspconfig.util.root_pattern("*.sln", "*.csproj"),
+    opts = function()
+      local dap = require("dap")
+      if not dap.adapters["netcoredbg"] then
+        require("dap").adapters["netcoredbg"] = {
+          type = "executable",
+          command = vim.fn.exepath("netcoredbg"),
+          args = { "--interpreter=vscode" },
+          options = {
+            detached = false,
+          },
+        }
+      end
+      for _, lang in ipairs({ "cs", "fsharp", "vb" }) do
+        if not dap.configurations[lang] then
+          dap.configurations[lang] = {
+            {
+              type = "netcoredbg",
+              name = "Launch file",
+              request = "launch",
+              ---@diagnostic disable-next-line: redundant-parameter
+              program = function()
+                return vim.fn.input("Path to dll: ", vim.fn.getcwd() .. "/", "file")
+              end,
+              cwd = "${workspaceFolder}",
+            },
+          }
+        end
+      end
+    end
+})
 
 -- Put query into SQL acceptable format
 function Paste_as_sql()
@@ -132,6 +169,7 @@ end
 
 vim.cmd("command! RemoveQFItem lua Remove_qf_item()")
 vim.api.nvim_command("autocmd FileType qf nnoremap <buffer> dd :RemoveQFItem<cr>")
+
 lvim.plugins = {
     { "EdenEast/nightfox.nvim" },
     { "github/copilot.vim" },
