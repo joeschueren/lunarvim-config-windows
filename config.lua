@@ -1,18 +1,15 @@
--- Read the docs: https://www.lunarvim.org/docs/configuratin
--- Example configs: https://github.com/LunarVim/starter.lvim
--- Video Tutorials: https://www.youtube.com/watch?v=sFA9kX-Ud_c&list=PLhoH5vyxr6QqGu0i7tt_XoVK9v-KvZ3m6
--- Forum: https://www.reddit.com/r/lunarvim/
--- Discord: https://discord.com/invite/Xb9B4Ny
-
 -- Enable powershell as your default shell
 vim.opt.shell = "pwsh.exe"
 vim.opt.shellcmdflag =
-  "-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -Command [Console]::InputEncoding=[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
+  "-NoLogo -ExecutionPolicy RemoteSigned -Command [Console]::InputEncoding=[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
 vim.cmd [[
 		let &shellredir = '2>&1 | Out-File -Encoding UTF8 %s; exit $LastExitCode'
 		let &shellpipe = '2>&1 | Out-File -Encoding UTF8 %s; exit $LastExitCode'
 		set shellquote= shellxquote=
   ]]
+
+local mason = require("mason")
+mason.platform = "win"
 
 -- Set a compatible clipboard manager
 vim.g.clipboard = {
@@ -36,52 +33,74 @@ vim.opt.expandtab = true
 vim.opt.relativenumber = true
 vim.opt.number = true
 
--- Custom keybidings
-vim.keymap.set('n', '<C-c>', '<Cmd>CopilotChat<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<Tab>', '<Cmd>wincmd W<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<C-f>', '<Cmd>Telescope live_grep<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<C-d>', '<Cmd>DBUI<CR>', { noremap = true, silent = true })
-vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
-vim.keymap.set('n', '<C-l>', '<Cmd>Telescope oldfiles<CR>', { noremap = true, silent = true })
-vim.keymap.set('n', '<C-p>', '<Cmd>PasteAsSQL<CR>', { noremap = true, silent = true })
+-- Custom keybindings
+lvim.keys.normal_mode['<C-c>'] = '<Cmd>CopilotChatToggle<CR>'
+lvim.keys.normal_mode['<Tab>'] = '<Cmd>wincmd W<CR>'
+lvim.keys.normal_mode['<C-f>'] = '<Cmd>Telescope live_grep<CR>'
+lvim.keys.normal_mode['<C-d>'] = '<Cmd>DBUI<CR>'
+lvim.keys.normal_mode["-"] = "<CMD>Oil<CR>"
+lvim.keys.normal_mode['<Leader>v'] = '<Cmd>vsplit<CR>'
+lvim.keys.normal_mode['<Leader>r'] = '<Cmd>lua vim.lsp.buf.definition()<CR>'
+lvim.keys.normal_mode['<Leader>o'] = '<Cmd>Telescope oldfiles<CR>'
+lvim.keys.normal_mode['<C-p>'] = '<Cmd>PasteAsSQL<CR>'
+lvim.keys.normal_mode['<C-j>'] = '<Cmd>lua SearchForFileInLine()<CR>'
+lvim.keys.normal_mode['<Leader>d'] = '<Cmd>TelescopeRecentFirst<CR>'
+lvim.keys.normal_mode['<Leader>m'] = '<Cmd>CopyHtmlId<CR>'
+lvim.keys.normal_mode['<Leader>F'] = '<Cmd>lua require("telescope.builtin").find_files({ hidden = true })<CR>'
+lvim.keys.normal_mode['<Leader>u'] = '"0p'
+lvim.keys.normal_mode['<Leader>$'] = 'a$(\'#<Esc>"0pa\').'
+lvim.keys.normal_mode['<Up>'] = '25k'
+lvim.keys.normal_mode['<Down>'] = '25j'
+lvim.keys.visual_mode['<Up>'] = '25k'
+lvim.keys.visual_mode['<Down>'] = '25j'
+lvim.keys.normal_mode['<Leader>q'] = ':close<CR>'
+lvim.keys.normal_mode['<Right>'] = ':BufferLineCycleNext<CR>'
+lvim.keys.normal_mode['<Left>'] = ':BufferLineCyclePrev<CR>'
+lvim.keys.normal_mode[','] = '$a,<Esc>'
+lvim.keys.normal_mode['<C-b>'] = '<Cmd>!pb<cr>'
+lvim.keys.normal_mode['<Leader>F'] = '0wV%zf'
 
-local lspconfig = require("lspconfig")
-lspconfig.omnisharp.setup({
-    cmd = { "omnisharp" }, -- Ensure it's in your PATH or provide full path
-    enable_roslyn_analyzers = true,
-    enable_import_completion = true,
-    organize_imports_on_format = true,
-    root_dir = lspconfig.util.root_pattern("*.sln", "*.csproj"),
-    opts = function()
-      local dap = require("dap")
-      if not dap.adapters["netcoredbg"] then
-        require("dap").adapters["netcoredbg"] = {
-          type = "executable",
-          command = vim.fn.exepath("netcoredbg"),
-          args = { "--interpreter=vscode" },
-          options = {
-            detached = false,
-          },
-        }
-      end
-      for _, lang in ipairs({ "cs", "fsharp", "vb" }) do
-        if not dap.configurations[lang] then
-          dap.configurations[lang] = {
-            {
-              type = "netcoredbg",
-              name = "Launch file",
-              request = "launch",
-              ---@diagnostic disable-next-line: redundant-parameter
-              program = function()
-                return vim.fn.input("Path to dll: ", vim.fn.getcwd() .. "/", "file")
-              end,
-              cwd = "${workspaceFolder}",
-            },
-          }
-        end
-      end
-    end
+
+vim.filetype.add({
+    extension = {
+        xaml = "xml",
+    },
 })
+
+-- CSV setup
+vim.api.nvim_create_augroup('csv_autocommands', { clear = true })
+vim.api.nvim_create_autocmd({'BufRead', 'BufNewFile'}, {
+  pattern = '*.csv',
+  command = 'CsvViewEnable',
+})
+
+-- Search For File in Line
+function SearchForFileInLine()
+    local line = vim.api.nvim_get_current_line()
+    local processed_line = line:match('API/([^"\']*)')
+
+    if processed_line then
+        vim.cmd("Telescope find_files  default_text=" .. processed_line)
+    end
+end
+
+-- Telescope Setup
+lvim.builtin.telescope.defaults.path_display = { "truncate" }
+
+lvim.builtin.telescope.pickers = {
+    find_files = {
+        path_display = { "truncate" },
+    },
+    live_grep = {
+        path_display = { "truncate" },
+    },
+    buffers = {
+        path_display = { "truncate" },
+    },
+    oldfiles = {
+        path_display = { "truncate" },
+    }
+}
 
 -- Put query into SQL acceptable format
 function Paste_as_sql()
@@ -144,6 +163,45 @@ end
 
 vim.cmd("command! PasteAsSQL lua Paste_as_sql()")
 
+function CopyHtmlId()
+    -- Get the current line
+    local line = vim.api.nvim_get_current_line()
+
+    -- Find the id attribute
+    local id = line:match('id%s*=%s*"([^"]+)"')
+
+    if id then
+        -- Copy the id to the unnamed register
+        vim.fn.setreg('"', id)
+        print("Copied id: " .. id)
+    else
+        print("No id found in the current line")
+    end
+end
+
+-- Create a command to call the function
+vim.cmd("command! CopyHtmlId lua CopyHtmlId()")
+
+require('lspconfig').csharp_ls.setup {
+  capabilities = require('cmp_nvim_lsp').default_capabilities(),
+  on_attach = function(client, bufnr)
+    -- Enable navic (document symbol provider must be available)
+    if client.server_capabilities.documentSymbolProvider then
+      require('nvim-navic').attach(client, bufnr)
+    end
+  end
+}
+
+-- Open downloads
+vim.api.nvim_create_user_command("TelescopeRecentFirst", function()
+  require('telescope.builtin').find_files({
+    cwd = vim.fn.expand("~/Downloads"),
+    sorting_strategy = "descending",
+    sorter = require('telescope.sorters').get_fuzzy_file(),
+    find_command = { "rg", "--files", "--sortr=modified" }, -- Use 'rg' to sort by modification time
+  })
+end, {})
+
 -- quickfix list delete keymap
 function Remove_qf_item()
   local curqfidx = vim.fn.line('.')
@@ -172,10 +230,47 @@ vim.api.nvim_command("autocmd FileType qf nnoremap <buffer> dd :RemoveQFItem<cr>
 
 lvim.plugins = {
     { "EdenEast/nightfox.nvim" },
+    { "catppuccin/nvim", name = "catppuccin", priority = 1000 },
+    { "rebelot/kanagawa.nvim" },
     { "Mofiqul/vscode.nvim" },
     { "pauchiner/pastelnight.nvim" },
     { "Enonya/yuyuko.vim" },
     { "neg-serg/neg.nvim" },
+    { "levouh/tint.nvim",
+        opts = {
+              tint = -50,  -- Darken colors, use a positive value to brighten
+              saturation = 0.2,  -- Saturation to preserve
+              window_ignore_function = function(winid)
+                local bufid = vim.api.nvim_win_get_buf(winid)
+                local buftype = vim.api.nvim_buf_get_option(bufid, "buftype")
+                local floating = vim.api.nvim_win_get_config(winid).relative ~= ""
+
+                -- Do not tint `terminal` or floating windows, tint everything else
+                return buftype == "terminal" or floating
+              end
+        }},
+    { "junegunn/vim-peekaboo" },
+    {
+      "hat0uma/csvview.nvim",
+      ---@module "csvview"
+      ---@type CsvView.Options
+      opts = {
+        parser = { comments = { "#", "//" } },
+        view = { display_mode = "border" },
+        keymaps = {
+          -- Text objects for selecting fields
+          textobject_field_inner = { "if", mode = { "o", "x" } },
+          textobject_field_outer = { "af", mode = { "o", "x" } },
+          -- Excel-like navigation:
+          -- Use <Tab> and <S-Tab> to move horizontally between fields.
+          -- Use <Enter> and <S-Enter> to move vertically between rows and place the cursor at the end of the field.
+          -- Note: In terminals, you may need to enable CSI-u mode to use <S-Tab> and <S-Enter>.
+          jump_next_row = { "<Enter>", mode = { "n", "v" } },
+          jump_prev_row = { "<S-Enter>", mode = { "n", "v" } },
+        },
+      },
+      cmd = { "CsvViewEnable", "CsvViewDisable", "CsvViewToggle" },
+    },
     { "github/copilot.vim" },
     { "tpope/vim-surround" },
     {
@@ -198,166 +293,166 @@ lvim.plugins = {
           { "github/copilot.vim" }, -- or zbirenbaum/copilot.lua
           { "nvim-lua/plenary.nvim", branch = "master" }, -- for curl, log and async functions
         },
-opts = {
-      question_header = "## User ",
-      answer_header = "## Copilot ",
-      error_header = "## Error ",
-      prompts = prompts,
-      auto_follow_cursor = false, -- Don't follow the cursor after getting response
-      mappings = {
-        -- Use tab for completion
-        complete = {
-          detail = "Use @<Tab> or /<Tab> for options.",
-          insert = "<Tab>",
-        },
-        -- Close the chat
-        close = {
-          normal = "q",
-          insert = "<C-c>",
-        },
-        -- Reset the chat buffer
-        reset = {
-          normal = "<C-x>",
-          insert = "<C-x>",
-        },
-        -- Submit the prompt to Copilot
-        submit_prompt = {
-          normal = "<CR>",
-          insert = "<C-CR>",
-        },
-        -- Accept the diff
-        accept_diff = {
-          normal = "<C-y>",
-          insert = "<C-y>",
-        },
-        -- Show help
-        show_help = {
-          normal = "g?",
-        },
-      },
-    },
-    config = function(_, opts)
-      local chat = require("CopilotChat")
-      chat.setup(opts)
-
-      local select = require("CopilotChat.select")
-      vim.api.nvim_create_user_command("CopilotChatVisual", function(args)
-        chat.ask(args.args, { selection = select.visual })
-      end, { nargs = "*", range = true })
-
-      -- Inline chat with Copilot
-      vim.api.nvim_create_user_command("CopilotChatInline", function(args)
-        chat.ask(args.args, {
-          selection = select.visual,
-          window = {
-            layout = "float",
-            relative = "cursor",
-            width = 1,
-            height = 0.4,
-            row = 1,
+    opts = {
+          model = "claude-3.7-sonnet-thought",
+          question_header = "## User ",
+          answer_header = "## Copilot ",
+          error_header = "## Error ",
+          prompts = prompts,
+          auto_follow_cursor = false, -- Don't follow the cursor after getting response
+          mappings = {
+            -- Use tab for completion
+            complete = {
+              detail = "Use @<Tab> or /<Tab> for options.",
+              insert = "<Tab>",
+            },
+            -- Close the chat
+            close = {
+              normal = "q",
+              insert = "<C-c>",
+            },
+            -- Reset the chat buffer
+            reset = {
+              normal = "<C-x>",
+              insert = "<C-x>",
+            },
+            -- Submit the prompt to Copilot
+            submit_prompt = {
+              normal = "<CR>",
+              insert = "<C-CR>",
+            },
+            -- Accept the diff
+            accept_diff = {
+              normal = "<C-y>",
+              insert = "<C-y>",
+            },
+            -- Show help
+            show_help = {
+              normal = "g?",
+            },
           },
-        })
-      end, { nargs = "*", range = true })
+        },
+        config = function(_, opts)
+          local chat = require("CopilotChat")
+          chat.setup(opts)
 
-      -- Restore CopilotChatBuffer
-      vim.api.nvim_create_user_command("CopilotChatBuffer", function(args)
-        chat.ask(args.args, { selection = select.buffer })
-      end, { nargs = "*", range = true })
+          local select = require("CopilotChat.select")
+          vim.api.nvim_create_user_command("CopilotChatVisual", function(args)
+            chat.ask(args.args, { selection = select.visual })
+          end, { nargs = "*", range = true })
 
-      -- Custom buffer for CopilotChat
-      vim.api.nvim_create_autocmd("BufEnter", {
-        pattern = "copilot-*",
-        callback = function()
-          vim.opt_local.relativenumber = true
-          vim.opt_local.number = true
+          -- Inline chat with Copilot
+          vim.api.nvim_create_user_command("CopilotChatInline", function(args)
+            chat.ask(args.args, {
+              selection = select.visual,
+              window = {
+                layout = "float",
+                relative = "cursor",
+                width = 1,
+                height = 0.4,
+                row = 1,
+              },
+            })
+          end, { nargs = "*", range = true })
 
-          -- Get current filetype and set it to markdown if the current filetype is copilot-chat
-          local ft = vim.bo.filetype
-          if ft == "copilot-chat" then
-            vim.bo.filetype = "markdown"
-          end
+          -- Restore CopilotChatBuffer
+          vim.api.nvim_create_user_command("CopilotChatBuffer", function(args)
+            chat.ask(args.args, { selection = select.buffer })
+          end, { nargs = "*", range = true })
+
+          -- Custom buffer for CopilotChat
+          vim.api.nvim_create_autocmd("BufEnter", {
+            pattern = "copilot-*",
+            callback = function()
+              vim.opt_local.relativenumber = true
+              vim.opt_local.number = true
+
+              -- Get current filetype and set it to markdown if the current filetype is copilot-chat
+              local ft = vim.bo.filetype
+              if ft == "copilot-chat" then
+                vim.bo.filetype = "markdown"
+              end
+            end,
+          })
         end,
-      })
-    end,
-    event = "VeryLazy",
-    keys = {
-      -- Show prompts actions with telescope
-      {
-        "<leader>ap",
-        function()
-          local actions = require("CopilotChat.actions")
-          require("CopilotChat.integrations.telescope").pick(actions.prompt_actions())
-        end,
-        desc = "CopilotChat - Prompt actions",
-      },
-      {
-        "<leader>ap",
-        ":lua require('CopilotChat.integrations.telescope').pick(require('CopilotChat.actions').prompt_actions({selection = require('CopilotChat.select').visual}))<CR>",
-        mode = "x",
-        desc = "CopilotChat - Prompt actions",
-      },
-      -- Code related commands
-      { "<leader>ae", "<cmd>CopilotChatExplain<cr>", desc = "CopilotChat - Explain code" },
-      { "<leader>at", "<cmd>CopilotChatTests<cr>", desc = "CopilotChat - Generate tests" },
-      { "<leader>ar", "<cmd>CopilotChatReview<cr>", desc = "CopilotChat - Review code" },
-      { "<leader>aR", "<cmd>CopilotChatRefactor<cr>", desc = "CopilotChat - Refactor code" },
-      { "<leader>an", "<cmd>CopilotChatBetterNamings<cr>", desc = "CopilotChat - Better Naming" },
-      -- Chat with Copilot in visual mode
-      {
-        "<leader>av",
-        ":CopilotChatVisual",
-        mode = "x",
-        desc = "CopilotChat - Open in vertical split",
-      },
-      {
-        "<leader>ax",
-        ":CopilotChatInline<cr>",
-        mode = "x",
-        desc = "CopilotChat - Inline chat",
-      },
-      -- Custom input for CopilotChat
-      {
-        "<leader>ai",
-        function()
-          local input = vim.fn.input("Ask Copilot: ")
-          if input ~= "" then
-            vim.cmd("CopilotChat " .. input)
-          end
-        end,
-        desc = "CopilotChat - Ask input",
-      },
-      -- Generate commit message based on the git diff
-      {
-        "<leader>am",
-        "<cmd>CopilotChatCommit<cr>",
-        desc = "CopilotChat - Generate commit message for all changes",
-      },
-      -- Quick chat with Copilot
-      {
-        "<leader>aq",
-        function()
-          local input = vim.fn.input("Quick Chat: ")
-          if input ~= "" then
-            vim.cmd("CopilotChatBuffer " .. input)
-          end
-        end,
-        desc = "CopilotChat - Quick chat",
-      },
-      -- Debug
-      { "<leader>ad", "<cmd>CopilotChatDebugInfo<cr>", desc = "CopilotChat - Debug Info" },
-      -- Fix the issue with diagnostic
-      { "<leader>af", "<cmd>CopilotChatFixDiagnostic<cr>", desc = "CopilotChat - Fix Diagnostic" },
-      -- Clear buffer and chat history
-      { "<leader>al", "<cmd>CopilotChatReset<cr>", desc = "CopilotChat - Clear buffer and chat history" },
-      -- Toggle Copilot Chat Vsplit
-      { "<leader>av", "<cmd>CopilotChatToggle<cr>", desc = "CopilotChat - Toggle" },
-      -- Copilot Chat Models
-      { "<leader>a?", "<cmd>CopilotChatModels<cr>", desc = "CopilotChat - Select Models" },
-      -- Copilot Chat Agents
-      { "<leader>aa", "<cmd>CopilotChatAgents<cr>", desc = "CopilotChat - Select Agents" },
-    },
-    },
+        event = "VeryLazy",
+        keys = {
+          -- Show prompts actions with telescope
+          {
+            "<leader>ap",
+            function()
+              local actions = require("CopilotChat.actions")
+              require("CopilotChat.integrations.telescope").pick(actions.prompt_actions())
+            end,
+            desc = "CopilotChat - Prompt actions",
+          },
+          {
+            "<leader>ap",
+            ":lua require('CopilotChat.integrations.telescope').pick(require('CopilotChat.actions').prompt_actions({selection = require('CopilotChat.select').visual}))<CR>",
+            mode = "x",
+            desc = "CopilotChat - Prompt actions",
+          },
+          -- Code related commands
+          { "<leader>ae", "<cmd>CopilotChatExplain<cr>", desc = "CopilotChat - Explain code" },
+          { "<leader>at", "<cmd>CopilotChatTests<cr>", desc = "CopilotChat - Generate tests" },
+          { "<leader>ar", "<cmd>CopilotChatReview<cr>", desc = "CopilotChat - Review code" },
+          { "<leader>aR", "<cmd>CopilotChatRefactor<cr>", desc = "CopilotChat - Refactor code" },
+          { "<leader>an", "<cmd>CopilotChatBetterNamings<cr>", desc = "CopilotChat - Better Naming" },
+          -- Chat with Copilot in visual mode
+          {
+            "<leader>av",
+            ":CopilotChatVisual",
+            mode = "x",
+            desc = "CopilotChat - Open in vertical split",
+          },
+          {
+            "<leader>ax",
+            ":CopilotChatInline<cr>",
+            mode = "x",
+            desc = "CopilotChat - Inline chat",
+          },
+          -- Custom input for CopilotChat
+          {
+            "<leader>ai",
+            function()
+              local input = vim.fn.input("Ask Copilot: ")
+              if input ~= "" then
+                vim.cmd("CopilotChat " .. input)
+              end
+            end,
+            desc = "CopilotChat - Ask input",
+          },
+          -- Generate commit message based on the git diff
+          {
+            "<leader>am",
+            "<cmd>CopilotChatCommit<cr>",
+            desc = "CopilotChat - Generate commit message for all changes",
+          },
+          -- Quick chat with Copilot
+          {
+            "<leader>aq",
+            function()
+              local input = vim.fn.input("Quick Chat: ")
+              if input ~= "" then
+                vim.cmd("CopilotChatBuffer " .. input)
+              end
+            end,
+            desc = "CopilotChat - Quick chat",
+          },
+          -- Debug
+          { "<leader>ad", "<cmd>CopilotChatDebugInfo<cr>", desc = "CopilotChat - Debug Info" },
+          -- Fix the issue with diagnostic
+          { "<leader>af", "<cmd>CopilotChatFixDiagnostic<cr>", desc = "CopilotChat - Fix Diagnostic" },
+          -- Clear buffer and chat history
+          { "<leader>al", "<cmd>CopilotChatReset<cr>", desc = "CopilotChat - Clear buffer and chat history" },
+          -- Toggle Copilot Chat Vsplit
+          { "<leader>av", "<cmd>CopilotChatToggle<cr>", desc = "CopilotChat - Toggle" },
+          -- Copilot Chat Models
+          { "<leader>a?", "<cmd>CopilotChatModels<cr>", desc = "CopilotChat - Select Models" },
+          -- Copilot Chat Agents
+          { "<leader>aa", "<cmd>CopilotChatAgents<cr>", desc = "CopilotChat - Select Agents" },
+        },
+        },
 }
 
-lvim.colorscheme = "carbonfox"
-
+lvim.colorscheme = "catppuccin-frappe"
